@@ -30,20 +30,6 @@ dns:
     - localhost.sec.qq.com
     - localhost.ptlogin2.qq.com
     - "+.msftconnecttest.com"
-tun:
-  enable: true
-  stack: system
-  auto-route: true
-  auto-detect-interface: true
-  dns-hijack:
-    - 114.114.114.114:53
-    - 180.76.76.76:53
-    - 119.29.29.29:53
-    - 223.5.5.5:53
-    - 8.8.8.8:53
-    - 8.8.4.4:53
-    - 1.1.1.1:53
-    - 1.0.0.1:53
 proxies:
 proxy-groups:
   - { name: "🚀 节点选择", type: select, proxies: ["🔯 故障转移","🚄 高速公网"] }
