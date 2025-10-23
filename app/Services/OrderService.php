@@ -212,7 +212,6 @@ class OrderService
             ->where('period', '!=', 'reset_price')
             ->where('period', '!=', 'onetime_price')
             ->where('period', '!=', 'deposit')
-            ->where('period', '!=', '')
             ->where('status', 3)
             ->get()
             ->toArray();
@@ -231,23 +230,28 @@ class OrderService
         if ($lastValidateAt === null) return;
     
         $expiredAtByOrder = strtotime("+{$orderMonthSum} month", $lastValidateAt);
-        if ($expiredAtByOrder < time()) return;
-        $orderSurplusSecond = $expiredAtByOrder - time();
+        $expiredAtByUser = $user->expired_at;
+        if ($expiredAtByOrder < time() || $expiredAtByUser < time()) return;
+        $orderSurplusSecond = $expiredAtByUser - time();
         $orderRangeSecond = $expiredAtByOrder - $lastValidateAt;
     
-        $totalTraffic = $user->transfer_enable / 1073741824;
-        $usedTraffic = ($user->u + $user->d) / 1073741824;
+        $totalTraffic = $user->transfer_enable;
+        $usedTraffic = ($user->u + $user->d);
         if ($totalTraffic == 0) return;
     
         $remainingTrafficRatio = ($totalTraffic - $usedTraffic) / $totalTraffic;
     
         $avgPricePerSecond = $orderAmountSum / $orderRangeSecond;
         if ($orderRangeSecond <= 31 * 86400) {
-            $orderSurplusAmount = $avgPricePerSecond * $orderSurplusSecond * $remainingTrafficRatio;
+            $remainingExpiredTimeRatio = $orderSurplusSecond / $orderRangeSecond;
+            $surplusRatio = min($remainingExpiredTimeRatio, $remainingTrafficRatio);
+            $orderSurplusAmount = $avgPricePerSecond * $orderSurplusSecond * $surplusRatio;
         } else {
-            $firstMonthSeconds = min($orderSurplusSecond, 30 * 86400);
-            $laterMonthsSeconds = $orderSurplusSecond - $firstMonthSeconds;
-            $orderSurplusAmount = $avgPricePerSecond * $firstMonthSeconds * $remainingTrafficRatio +
+            $monthSeconds = 30 * 86400;
+            $firstMonthRemainSeconds = $orderSurplusSecond % $monthSeconds;
+            $surplusRatio = min($firstMonthRemainSeconds / $monthSeconds, $remainingTrafficRatio);
+            $laterMonthsSeconds = $orderSurplusSecond - $firstMonthRemainSeconds;
+            $orderSurplusAmount = $avgPricePerSecond * $monthSeconds * $surplusRatio +
                                   $avgPricePerSecond * $laterMonthsSeconds;
         }
     
