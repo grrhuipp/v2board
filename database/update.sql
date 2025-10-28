@@ -742,7 +742,9 @@ ALTER TABLE `v2_plan`
 
 ALTER TABLE `v2_user`
     ADD `device_limit` int(11) NULL AFTER `transfer_enable`;
-
+ALTER TABLE `v2_user`
+  ADD COLUMN `ua` varchar(255) DEFAULT NULL COMMENT 'User-Agent',
+  ADD COLUMN `fingerprint` varchar(64) DEFAULT NULL COMMENT 'fingerprint';
 ALTER TABLE `v2_server_trojan`
     ADD `network` varchar(11) NULL AFTER `server_port`,
     ADD `network_settings` text AFTER `network`;
