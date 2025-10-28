@@ -137,6 +137,8 @@ class AuthController extends Controller
         //注册IP
         $ip = $request->ip();
         $cacheKey = 'TRIAL_IP:' . $ip;
+        $fingerprint = $request->input('fingerprint');
+        $fingerprintCacheKey = 'TRIAL_FP:' . $fingerprint;
         if ($inviteCode) {
             $inviteCode = InviteCode::where('code', $inviteCode)->where('status', 0)->first();
             if (!$inviteCode) {
@@ -162,14 +164,15 @@ class AuthController extends Controller
         $isQQEmail = Str::endsWith($email, ['@qq.com', '@qq.cn', '@qq.com.cn']);
         $emailPrefix = Str::before($email, '@');
         $isNumericQQ = $isQQEmail && ctype_digit($emailPrefix);
-        if (Cache::has($cacheKey) && !$isNumericQQ) {
-            \Log::info('跳过试用套餐发放（IP已存在缓存，非纯数字QQ邮箱）', [
-                    'email' => $email,
-                    'ip' => $ip,
-                    'cache_key' => $cacheKey
+        if ((Cache::has($cacheKey) || Cache::has($fingerprintCacheKey)) && !$isNumericQQ) {
+            \Log::info('跳过试用套餐发放（IP或指纹已存在缓存，非纯数字QQ邮箱）', [
+                'email' => $email,
+                'ip' => $ip,
+                'fingerprint' => $fingerprint,
+                'cache_key_ip' => $cacheKey,
+                'cache_key_fp' => $fingerprintCacheKey
             ]);
-        }
-        else{
+        } else {
             if ((int)config('v2board.try_out_plan_id', 0)) {
                 $plan = Plan::find(config('v2board.try_out_plan_id'));
                 if ($plan) {
@@ -242,6 +245,7 @@ class AuthController extends Controller
         }
         $authService = new AuthService($user);
         Cache::put($cacheKey, true, now()->addDays(90));
+        Cache::put($fingerprintCacheKey, true, now()->addDays(180));
         return response()->json([
             'data' => $authService->generateAuthData($request)
         ]);
