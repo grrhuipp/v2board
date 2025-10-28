@@ -177,6 +177,8 @@ class AuthController extends Controller
         $user->uuid = Helper::guid(true);
         $user->token = Helper::guid();
         $user->is_admin = 0;
+        $user->ua = $request->header('User-Agent');
+        $user->fingerprint = $fingerprint;
         if ($inviteCode) {
             $user->invite_user_id = $inviteCode->user_id ?? null;
         }
