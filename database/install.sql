@@ -539,6 +539,8 @@ CREATE TABLE `v2_user` (
                            `token` char(32) NOT NULL,
                            `expired_at` bigint(20) DEFAULT '0',
                            `alive_ip` INT NOT NULL DEFAULT 0 COMMENT '在线 IP 数量',
+                           `ua` varchar(255) DEFAULT NULL COMMENT 'User-Agent',
+                           `fingerprint` varchar(64) DEFAULT NULL COMMENT 'fingerprint',
                            `remarks` text,
                            `created_at` int(11) NOT NULL,
                            `updated_at` int(11) NOT NULL,
