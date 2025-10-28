@@ -81,6 +81,7 @@ class AuthController extends Controller
 
     public function register(AuthRegister $request)
     {
+        // IP注册限制
         if ((int)config('v2board.register_limit_by_ip_enable', 0)) {
             $registerCountByIP = Cache::get(CacheKey::get('REGISTER_IP_RATE_LIMIT', $request->ip())) ?? 0;
             if ((int)$registerCountByIP >= (int)config('v2board.register_limit_count', 3)) {
@@ -89,6 +90,8 @@ class AuthController extends Controller
                 ]));
             }
         }
+    
+        // ReCaptcha 验证
         if ((int)config('v2board.recaptcha_enable', 0)) {
             $recaptcha = new ReCaptcha(config('v2board.recaptcha_key'));
             $recaptchaResp = $recaptcha->verify($request->input('recaptcha_data'));
@@ -96,6 +99,8 @@ class AuthController extends Controller
                 abort(500, __('Invalid code is incorrect'));
             }
         }
+    
+        // 邮箱白名单
         if ((int)config('v2board.email_whitelist_enable', 0)) {
             if (!Helper::emailSuffixVerify(
                 $request->input('email'),
@@ -104,20 +109,28 @@ class AuthController extends Controller
                 abort(500, __('Email suffix is not in the Whitelist'));
             }
         }
+    
+        // Gmail 限制
         if ((int)config('v2board.email_gmail_limit_enable', 0)) {
             $prefix = explode('@', $request->input('email'))[0];
             if (strpos($prefix, '.') !== false || strpos($prefix, '+') !== false) {
                 abort(500, __('Gmail alias is not supported'));
             }
         }
+    
+        // 注册开关
         if ((int)config('v2board.stop_register', 0)) {
             abort(500, __('Registration has closed'));
         }
+    
+        // 邀请码强制
         if ((int)config('v2board.invite_force', 0)) {
             if (empty($request->input('invite_code'))) {
                 abort(500, __('You must use the invitation code to register'));
             }
         }
+    
+        // 邮箱验证码
         if ((int)config('v2board.email_verify', 0)) {
             if (empty($request->input('email_code'))) {
                 abort(500, __('Email verification code cannot be empty'));
@@ -126,21 +139,28 @@ class AuthController extends Controller
                 abort(500, __('Incorrect email verification code'));
             }
         }
+    
         DB::beginTransaction();
+    
         $email = $request->input('email');
         $password = $request->input('password');
         $code = $request->input('code');
-        $inviteCode = $request->input('invite_code');
+        $inviteCodeInput = $request->input('invite_code');
+    
         if (User::where('email', $email)->exists()) {
             abort(500, '该邮箱已被注册');
         }
-        //注册IP
+    
+        // 注册IP & 指纹
         $ip = $request->ip();
         $cacheKey = 'TRIAL_IP:' . $ip;
         $fingerprint = $request->input('fingerprint');
-        $fingerprintCacheKey = 'TRIAL_FP:' . $fingerprint;
-        if ($inviteCode) {
-            $inviteCode = InviteCode::where('code', $inviteCode)->where('status', 0)->first();
+        $fingerprintCacheKey = $fingerprint ? 'TRIAL_FP:' . $fingerprint : null;
+    
+        // 处理邀请码
+        $inviteCode = null;
+        if ($inviteCodeInput) {
+            $inviteCode = InviteCode::where('code', $inviteCodeInput)->where('status', 0)->first();
             if (!$inviteCode) {
                 abort(500, __('Invalid invitation code'));
             }
@@ -149,9 +169,8 @@ class AuthController extends Controller
                 $inviteCode->save();
             }
         }
-
-        
-        //注册
+    
+        // 创建用户
         $user = new User();
         $user->email = $email;
         $user->password = password_hash($password, PASSWORD_DEFAULT);
@@ -159,13 +178,27 @@ class AuthController extends Controller
         $user->token = Helper::guid();
         $user->is_admin = 0;
         if ($inviteCode) {
-            $user->invite_user_id = $inviteCode->user_id ? $inviteCode->user_id : null;
+            $user->invite_user_id = $inviteCode->user_id ?? null;
         }
+    
+        // 判断是否QQ邮箱及数字前缀
         $isQQEmail = Str::endsWith($email, ['@qq.com', '@qq.cn', '@qq.com.cn']);
         $emailPrefix = Str::before($email, '@');
         $isNumericQQ = $isQQEmail && ctype_digit($emailPrefix);
-        if ((Cache::has($cacheKey) || Cache::has($fingerprintCacheKey)) && !$isNumericQQ) {
-            \Log::info('跳过试用套餐发放（IP或指纹已存在缓存，非纯数字QQ邮箱）', [
+    
+        // 试用套餐发放逻辑
+        $skipTrial = false;
+        if ($fingerprintCacheKey && Cache::has($fingerprintCacheKey)) {
+            // 指纹重复严格限制
+            $skipTrial = true;
+        }
+        if (Cache::has($cacheKey) && !$isNumericQQ) {
+            // IP重复限制非QQ邮箱
+            $skipTrial = true;
+        }
+    
+        if ($skipTrial) {
+            \Log::info('跳过试用套餐发放（IP或指纹重复限制）', [
                 'email' => $email,
                 'ip' => $ip,
                 'fingerprint' => $fingerprint,
@@ -185,10 +218,13 @@ class AuthController extends Controller
                 }
             }
         }
+    
         if (!$user->save()) {
             DB::rollBack();
             abort(500, __('Register failed'));
         }
+    
+        // 兑换码处理
         if ($code) {
             $redemptionCodeService = new RedemptionCodeService();
             $redeemData = $redemptionCodeService->validate($code);
@@ -197,17 +233,17 @@ class AuthController extends Controller
                 DB::rollBack();
                 abort(500, __('Subscription plan does not exist'));
             }
-
+    
             if ((!$plan->show && !$plan->renew) || (!$plan->show && $user->plan_id !== $plan->id)) {
                 DB::rollBack();
                 abort(500, __('This subscription has been sold out, please choose another subscription'));
             }
-
+    
             if ($plan[$redeemData['period']] === NULL) {
                 DB::rollBack();
                 abort(500, __('This payment period cannot be purchased, please choose another cycle'));
             }
-            
+    
             $order = new Order();
             $orderService = new OrderService($order);
             $order->user_id = $user->id;
@@ -218,38 +254,48 @@ class AuthController extends Controller
             $order->type = 5;
             $order->status = 0;
             if ($inviteCode) {
-                $order->invite_user_id = $inviteCode->user_id ? $inviteCode->user_id : null;
+                $order->invite_user_id = $inviteCode->user_id ?? null;
             }
-            if ($code) {
-                $couponService = new CouponService($code);
-                if (!$couponService->use($order)) {
-                    DB::rollBack();
-                    abort(500, __('Coupon failed'));
-                }
-                $order->coupon_id = $couponService->getId();
+            $couponService = new CouponService($code);
+            if (!$couponService->use($order)) {
+                DB::rollBack();
+                abort(500, __('Coupon failed'));
             }
-            if (!$orderService->paid('redeem_code:'.$code)) {
+            $order->coupon_id = $couponService->getId();
+            if (!$orderService->paid('redeem_code:' . $code)) {
                 DB::rollback();
                 abort(500, __('Failed to update order amount'));
             }
         }
+    
         DB::commit();
-        $logData['ip'] = $request->ip();
-        $logData['user_id'] = $user->id;
-        $logData['user_agent'] = $request->header('User-Agent');
-        \Log::info('用户注册成功: ' . json_encode($logData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        //邀请人奖励
+    
+        // 日志记录
+        \Log::info('用户注册成功', [
+            'user_id' => $user->id,
+            'ip' => $ip,
+            'fingerprint' => $fingerprint,
+            'user_agent' => $request->header('User-Agent')
+        ]);
+    
+        // 邀请奖励
         $inviteGiveType = (int)config('v2board.is_Invitation_to_give', 0);
         if ($inviteGiveType === 1 || $inviteGiveType === 3) {
             $this->handleInviteReward($user);
         }
-        $authService = new AuthService($user);
+    
+        // 缓存 IP 和指纹
         Cache::put($cacheKey, true, now()->addDays(90));
-        Cache::put($fingerprintCacheKey, true, now()->addDays(180));
+        if ($fingerprintCacheKey) {
+            Cache::put($fingerprintCacheKey, true, now()->addDays(180));
+        }
+    
+        $authService = new AuthService($user);
         return response()->json([
             'data' => $authService->generateAuthData($request)
         ]);
     }
+    
 
     public function handleInviteReward(User $user)
     {
