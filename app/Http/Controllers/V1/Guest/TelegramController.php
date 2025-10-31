@@ -152,8 +152,8 @@ class TelegramController extends Controller
         \Cache::put($cacheKey, $newCount, now()->endOfHour());
     
         try {
+            $this->telegramService->deleteMessage($chatId, $msg->message_id);
             if ($newCount < self::UNBOUND_USER_HOURLY_LIMIT) {
-                // 第 1、2 次：仅禁言 1 小时
                 $permissions = [
                     'can_send_messages' => false,
                     'can_send_media_messages' => false,
@@ -164,11 +164,7 @@ class TelegramController extends Controller
                     'can_invite_users' => false,
                     'can_pin_messages' => false,
                 ];
-    
-                // 发送绑定提醒
                 $this->sendBindReminder($msg, $newCount, 3600);
-    
-                // 禁言
                 $this->telegramService->restrictChatMember(
                     $chatId,
                     $userId,
@@ -176,25 +172,15 @@ class TelegramController extends Controller
                     time() + 3600,          
                     false
                 );
-    
-                // 删除原消息
-                $this->telegramService->deleteMessage($chatId, $msg->message_id);
-    
             } else {
-                // 第 3 次：踢出并禁言 24 小时
                 $this->sendBindReminder($msg, $newCount, 86400, true);
-    
                 $this->telegramService->banChatMember(
                     $chatId,
                     $userId,
                     time() + 86400,         
                     true
                 );
-    
-                // 删除原消息
-                $this->telegramService->deleteMessage($chatId, $msg->message_id);
-    
-                \Cache::forget($cacheKey); // 重置计数
+                \Cache::forget($cacheKey);
             }
         } catch (\Exception $e) {
             \Log::warning("[Telegram] 未绑定用户处理失败：" . $e->getMessage());
