@@ -61,7 +61,7 @@ class TelegramController extends Controller
             }
             $channelUsername = $msg->sender_chat_username ?? '未知频道';
             $text = "⚠️ 检测到频道 @{$channelUsername} 身份发言，消息已删除并已封禁该频道发言权限。";
-            $this->telegramService->sendMessage($msg->chat_id, $text, 'HTML');
+            $this->telegramService->sendMessage($msg->chat_id, $text, 'HTML',[],30);
             return true;
 
         } catch (\Exception $e) {
@@ -206,7 +206,7 @@ class TelegramController extends Controller
             $text .= "⏱ 已被禁言 <b>{$minutes} 分钟</b>（当前累计违规 {$currentCount}/".self::UNBOUND_USER_HOURLY_LIMIT."次）。\n";
             $text .= "🔗 请私聊 @{$botName} 发送 /bind 订阅链接完成绑定，否则将被移出群组。";
         }
-        $this->telegramService->sendMessage($chatId, $text, 'HTML', ['disable_web_page_preview' => true]);
+        $this->telegramService->sendMessage($chatId, $text, 'HTML', ['disable_web_page_preview' => true],30);
     }
     
     public function getBotName()
