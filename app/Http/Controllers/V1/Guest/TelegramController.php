@@ -203,7 +203,7 @@ class TelegramController extends Controller
         } else {
             $minutes = $banSeconds / 60;
             $text = "⚠️ {$mention} 您尚未绑定账户！\n";
-            $text .= "⏱ 已被禁言 <b>{$minutes} 分钟</b>（当前累计违规 {$currentCount}/".self::UNBOUND_USER_HOURLY_LIMIT"次）。\n";
+            $text .= "⏱ 已被禁言 <b>{$minutes} 分钟</b>（当前累计违规 {$currentCount}/".self::UNBOUND_USER_HOURLY_LIMIT."次）。\n";
             $text .= "🔗 请私聊 @{$botName} 发送 /bind 订阅链接完成绑定，否则将被移出群组。";
         }
         $this->telegramService->sendMessage($chatId, $text, 'HTML', ['disable_web_page_preview' => true]);
