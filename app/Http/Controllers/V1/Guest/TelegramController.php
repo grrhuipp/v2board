@@ -152,26 +152,56 @@ class TelegramController extends Controller
         \Cache::put($cacheKey, $newCount, now()->endOfHour());
     
         try {
-            // 立即删除消息
-            $this->telegramService->deleteMessage($chatId, $msg->message_id);
-    
-            // 判断惩罚等级
             if ($newCount < self::UNBOUND_USER_HOURLY_LIMIT) {
-                // 第 1、2 次：禁言 1 小时
-                $this->kickUser($chatId, $userId, 3600, true);
+                // 第 1、2 次：仅禁言 1 小时
+                $permissions = [
+                    'can_send_messages' => false,
+                    'can_send_media_messages' => false,
+                    'can_send_polls' => false,
+                    'can_send_other_messages' => false,
+                    'can_add_web_page_previews' => false,
+                    'can_change_info' => false,
+                    'can_invite_users' => false,
+                    'can_pin_messages' => false,
+                ];
+    
+                // 发送绑定提醒
                 $this->sendBindReminder($msg, $newCount, 3600);
+    
+                // 禁言
+                $this->telegramService->restrictChatMember(
+                    $chatId,
+                    $userId,
+                    $permissions,
+                    time() + 3600,          
+                    false
+                );
+    
+                // 删除原消息
+                $this->telegramService->deleteMessage($chatId, $msg->message_id);
+    
             } else {
                 // 第 3 次：踢出并禁言 24 小时
-                $this->kickUser($chatId, $userId, 86400, true);
                 $this->sendBindReminder($msg, $newCount, 86400, true);
+    
+                $this->telegramService->banChatMember(
+                    $chatId,
+                    $userId,
+                    time() + 86400,         
+                    true
+                );
+    
+                // 删除原消息
+                $this->telegramService->deleteMessage($chatId, $msg->message_id);
+    
                 \Cache::forget($cacheKey); // 重置计数
             }
         } catch (\Exception $e) {
             \Log::warning("[Telegram] 未绑定用户处理失败：" . $e->getMessage());
         }
-    
         return false; // 阻止消息继续处理
     }
+    
     
     private function sendBindReminder($msg, int $currentCount, int $banSeconds, bool $isKicked = false)
     {

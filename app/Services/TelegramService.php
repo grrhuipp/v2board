@@ -166,7 +166,24 @@ class TelegramService
             'commands' => json_encode($commands),
         ]);
     }
+    public function restrictChatMember(int $chatId, int $userId, array $permissions, ?int $untilDate = null, bool $useIndependentChatPermissions = false)
+    {
+        $params = [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+            'permissions' => json_encode($permissions),
+        ];
 
+        if ($untilDate !== null) {
+            $params['until_date'] = $untilDate;
+        }
+
+        if ($useIndependentChatPermissions) {
+            $params['use_independent_chat_permissions'] = true;
+        }
+
+        return $this->request('restrictChatMember', $params);
+    }
     private function request(string $method, array $params = [])
     {
         $curl = new Curl();
