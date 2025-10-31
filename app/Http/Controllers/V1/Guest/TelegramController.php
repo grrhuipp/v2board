@@ -142,58 +142,58 @@ class TelegramController extends Controller
     private function checkUnboundUserLimit($msg): bool
     {
         if (!isset($msg->from->id)) return false;
-
+    
         $userId = $msg->from->id;
         $chatId = $msg->chat_id;
         $cacheKey = self::CACHE_PREFIX . $userId;
-
+    
         $currentCount = \Cache::get($cacheKey, 0);
-
-        if ($currentCount >= self::UNBOUND_USER_HOURLY_LIMIT) {
-            try {
-                $this->kickUser($chatId, $userId, 3600, true);
-                $username = $msg->from->username ?? '无用户名';
-                $text = "⚠️ 用户 <a href=\"tg://user?id={$userId}\">@{$username}</a> 未绑定账户且超出发言限制，已被移出群组。";
-                $this->telegramService->sendMessage($chatId, $text, 'HTML');
-            } catch (\Exception $e) {
-                \Log::warning("[Telegram] 踢出超限用户失败：" . $e->getMessage());
-            }
-            return false;
-        }
-
         $newCount = $currentCount + 1;
         \Cache::put($cacheKey, $newCount, now()->endOfHour());
-
-        $this->sendBindReminder($msg, $newCount);
-
-        return true;
+    
+        try {
+            // 立即删除消息
+            $this->telegramService->deleteMessage($chatId, $msg->message_id);
+    
+            // 判断惩罚等级
+            if ($newCount < self::UNBOUND_USER_HOURLY_LIMIT) {
+                // 第 1、2 次：禁言 1 小时
+                $this->kickUser($chatId, $userId, 3600, true);
+                $this->sendBindReminder($msg, $newCount, 3600);
+            } else {
+                // 第 3 次：踢出并禁言 24 小时
+                $this->kickUser($chatId, $userId, 86400, true);
+                $this->sendBindReminder($msg, $newCount, 86400, true);
+                \Cache::forget($cacheKey); // 重置计数
+            }
+        } catch (\Exception $e) {
+            \Log::warning("[Telegram] 未绑定用户处理失败：" . $e->getMessage());
+        }
+    
+        return false; // 阻止消息继续处理
     }
-
-    private function sendBindReminder($msg, int $currentCount)
+    
+    private function sendBindReminder($msg, int $currentCount, int $banSeconds, bool $isKicked = false)
     {
         $userId = $msg->from->id;
         $chatId = $msg->chat_id;
-        $username = $msg->from->username ?? '无用户名';
-        $remaining = self::UNBOUND_USER_HOURLY_LIMIT - $currentCount;
-
+        $username = $msg->from->username ?? $msg->from->first_name ?? '用户';
+        $mention = '@' . $username;
         $botName = $this->getBotName();
-        $limit = self::UNBOUND_USER_HOURLY_LIMIT;
-
-        if ($remaining > 0) {
-            $text = "⚠️ 用户 <a href=\"tg://user?id={$userId}\">@{$username}</a> 您尚未绑定账户！\n";
-            $text .= "📊 本小时剩余发言次数：<b>{$remaining}/{$limit}</b>\n";
-            $text .= "🔗 请私聊 @{$botName} 发送 /bind 订阅链接 绑定\n";
-            $text .= "⏰ 超出限制将被移出群组";
+    
+        if ($isKicked) {
+            $text = "🚫 {$mention} 未绑定账户，累计违规 3 次，已被移出群组并禁言 24 小时。\n";
+            $text .= "🔗 请私聊 @{$botName} 发送 /bind 订阅链接 绑定后再加入群组。";
         } else {
-            $text = "🚨 用户 <a href=\"tg://user?id={$userId}\">@{$username}</a> 这是您本小时的最后一次发言机会！\n";
-            $text .= "🔗 请私聊 @{$botName} 发送 /bind 订阅链接 绑定\n";
-            $text .= "⚠️ 下次发言将被移出群组！";
+            $minutes = $banSeconds / 60;
+            $text = "⚠️ {$mention} 您尚未绑定账户！\n";
+            $text .= "⏱ 已被禁言 <b>{$minutes} 分钟</b>（当前累计违规 {$currentCount}/3 次）。\n";
+            $text .= "🔗 请私聊 @{$botName} 发送 /bind 订阅链接完成绑定，否则将被移出群组。";
         }
-
-        $extra = ['reply_to_message_id' => $msg->message_id];
-        $this->telegramService->sendMessage($chatId, $text, 'HTML', $extra, 60);
+    
+        $this->telegramService->sendMessage($chatId, $text, 'HTML', ['disable_web_page_preview' => true]);
     }
-
+    
     public function getBotName()
     {
         $response = $this->telegramService->getMe();
