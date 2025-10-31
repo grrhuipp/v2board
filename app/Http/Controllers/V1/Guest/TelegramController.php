@@ -173,6 +173,7 @@ class TelegramController extends Controller
                     false
                 );
             } else {
+                \Cache::forget($cacheKey);
                 $this->sendBindReminder($msg, $newCount, 86400, true);
                 $this->telegramService->banChatMember(
                     $chatId,
@@ -180,7 +181,6 @@ class TelegramController extends Controller
                     time() + 86400,         
                     true
                 );
-                \Cache::forget($cacheKey);
             }
         } catch (\Exception $e) {
             \Log::warning("[Telegram] 未绑定用户处理失败：" . $e->getMessage());
@@ -198,15 +198,14 @@ class TelegramController extends Controller
         $botName = $this->getBotName();
     
         if ($isKicked) {
-            $text = "🚫 {$mention} 未绑定账户，累计违规 3 次，已被移出群组并禁言 24 小时。\n";
+            $text = "🚫 {$mention} 未绑定账户，累计违规 ". self::UNBOUND_USER_HOURLY_LIMIT . "次，已被移出群组并禁言 24 小时。\n";
             $text .= "🔗 请私聊 @{$botName} 发送 /bind 订阅链接 绑定后再加入群组。";
         } else {
             $minutes = $banSeconds / 60;
             $text = "⚠️ {$mention} 您尚未绑定账户！\n";
-            $text .= "⏱ 已被禁言 <b>{$minutes} 分钟</b>（当前累计违规 {$currentCount}/3 次）。\n";
+            $text .= "⏱ 已被禁言 <b>{$minutes} 分钟</b>（当前累计违规 {$currentCount}/".self::UNBOUND_USER_HOURLY_LIMIT"次）。\n";
             $text .= "🔗 请私聊 @{$botName} 发送 /bind 订阅链接完成绑定，否则将被移出群组。";
         }
-    
         $this->telegramService->sendMessage($chatId, $text, 'HTML', ['disable_web_page_preview' => true]);
     }
     
