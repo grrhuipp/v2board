@@ -287,7 +287,7 @@ class AuthController extends Controller
         }
     
         // 缓存 IP 和指纹
-        Cache::put($cacheKey, true, now()->addDays(90));
+        Cache::put($cacheKey, true, now()->addDays(180));
         if ($fingerprintCacheKey) {
             Cache::put($fingerprintCacheKey, true, now()->addDays(180));
         }
