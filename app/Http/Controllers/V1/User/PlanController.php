@@ -31,6 +31,19 @@ class PlanController extends Controller
         $plans = Plan::where('show', 1)
             ->orderBy('sort', 'ASC')
             ->get();
+    if ($user->plan_id) {
+        $userPlan = Plan::find($user->plan_id);
+
+        if ($userPlan && $userPlan->show == 0) {
+            // 检查是否已在列表中，如果不在则手动加入首位
+            $exists = $plans->firstWhere('id', $userPlan->id);
+
+            if (!$exists) {
+                // 插入到第一位
+                $plans->prepend($userPlan);
+            }
+        }
+    }
         foreach ($plans as $k => $v) {
             if ($plans[$k]->capacity_limit === NULL) continue;
             if (!isset($counts[$plans[$k]->id])) continue;
