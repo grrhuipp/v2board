@@ -11,46 +11,47 @@ dns:
   ipv6: false
 
   default-nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 114.114.114.114
+   - 223.5.5.5
+   - 119.29.29.29
+   - 114.114.114.114
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
   use-hosts: true
   respect-rules: true
   proxy-server-nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 114.114.114.114
+   - 223.5.5.5
+   - 119.29.29.29
+   - 114.114.114.114
   nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 114.114.114.114
+   - 223.5.5.5
+   - 119.29.29.29
+   - 114.114.114.114
   fallback:
-    - 1.1.1.1
-    - 8.8.8.8
+   - 1.1.1.1
+   - 8.8.8.8
   fallback-filter:
     geoip: true
     geoip-code: CN
     geosite:
-      - gfw
+     - gfw
     ipcidr:
-      - 240.0.0.0/4
+     - 240.0.0.0/4
     domain:
-      - '+.google.com'
-      - '+.facebook.com'
-      - '+.youtube.com'
+     - '+.google.com'
+     - '+.facebook.com'
+     - '+.youtube.com'
 proxies:
 proxy-groups:
-  - { name: "🚀 节点选择", type: select, proxies: ["🔯 故障转移","🚄 高速公网"] }
-  - { name: "🔯 故障转移", type: fallback, proxies: [/^(?!.*(?:重置|到期|流量|套餐|官网|订阅|游戏)).*$/], url: "http://captive.apple.com", interval: 300 }
-  - { name: "🚄 高速公网", type: url-test, proxies: [/^(?!.*(?:重置|到期|流量|套餐|官网|订阅|游戏)).*$/], url: "http://captive.apple.com", interval: 300 }
-  - { name: "📺 巴哈姆特", type: select, proxies: ["🚀 节点选择"] }
-  - { name: "🎙 Discord", type: select, proxies: ["🚀 节点选择"] }
-  - { name: "📘 Facebook", type: select, proxies: ["🚀 节点选择"] }
-  - { name: "🌍 国外媒体", type: select, proxies: ["🚀 节点选择"] }
-  - { name: "📲 电报信息", type: select, proxies: ["🚀 节点选择"] }
-  - { name: "🍎 苹果服务", type: select, proxies: ["🚀 节点选择","DIRECT"] }
+ - { name: "🚀 节点选择", type: select, proxies: ["🔯 故障转移","🚄 高速公网"] }
+ - { name: "🔯 故障转移", type: fallback, proxies: [/^(?!.*(?:重置|到期|流量|套餐|官网|订阅|游戏)).*$/], url: "http://captive.apple.com", interval: 300 }
+ - { name: "🚄 高速公网", type: url-test, proxies: [/^(?!.*(?:重置|到期|流量|套餐|官网|订阅|游戏)).*$/], url: "http://captive.apple.com", interval: 300 }
+ - { name: "📺 巴哈姆特", type: select, proxies: ["🚀 节点选择"] }
+ - { name: "🤖 AI", type: select, proxies: ["🚀 节点选择"] }
+ - { name: "🎙 Discord", type: select, proxies: ["🚀 节点选择"] }
+ - { name: "📘 Facebook", type: select, proxies: ["🚀 节点选择"] }
+ - { name: "🌍 国外媒体", type: select, proxies: ["🚀 节点选择"] }
+ - { name: "📲 电报信息", type: select, proxies: ["🚀 节点选择"] }
+ - { name: "🍎 苹果服务", type: select, proxies: ["🚀 节点选择","DIRECT"] }
 
 rules:
  - DOMAIN-KEYWORD,leak,🚀 节点选择
@@ -65,6 +66,57 @@ rules:
  - DOMAIN,gamer2-cds.cdn.hinet.net,📺 巴哈姆特
  - DOMAIN-SUFFIX,bahamut.com.tw,📺 巴哈姆特
  - DOMAIN-SUFFIX,gamer.com.tw,📺 巴哈姆特
+  # ===== OpenAI / ChatGPT =====
+ - DOMAIN-SUFFIX,ai.com,🤖 AI
+ - DOMAIN-SUFFIX,chatgpt.com,🤖 AI
+ - DOMAIN-SUFFIX,chat.openai.com,🤖 AI
+ - DOMAIN-SUFFIX,openai.com,🤖 AI
+ - DOMAIN-SUFFIX,oaistatic.com,🤖 AI
+ - DOMAIN-SUFFIX,oaiusercontent.com,🤖 AI
+ - DOMAIN-SUFFIX,cdn.openai.com,🤖 AI
+ - DOMAIN-SUFFIX,auth0.openai.com,🤖 AI
+ - DOMAIN-SUFFIX,api.revenuecat.com,🤖 AI
+ - DOMAIN-SUFFIX,openaiapi-site.azureedge.net,🤖 AI
+ - DOMAIN-SUFFIX,openaicom.imgix.net,🤖 AI
+ - DOMAIN-SUFFIX,openaicomproductionae4b.blob.core.windows.net,🤖 AI
+ - DOMAIN-SUFFIX,openaicom-api-bdcpf8c6d2e9atf6.z01.azurefd.net,🤖 AI
+ - DOMAIN-SUFFIX,ios.chat.openai.com.cdn.cloudflare.net,🤖 AI
+
+  # ===== Telemetry / Support (OpenAI related) =====
+ - DOMAIN-SUFFIX,ingest.sentry.io,🤖 AI
+ - DOMAIN-SUFFIX,o33249.ingest.sentry.io,🤖 AI
+ - DOMAIN-SUFFIX,browser-intake-datadoghq.com,🤖 AI
+ - DOMAIN-SUFFIX,client.crisp.chat,🤖 AI
+
+  # ===== Google / Gemini / DeepMind =====
+ - DOMAIN,ai.google.dev,🤖 AI
+ - DOMAIN,makersuite.google.com,🤖 AI
+ - DOMAIN,alkalimakersuite-pa.clients6.google.com,🤖 AI
+ - DOMAIN-SUFFIX,bard.google.com,🤖 AI
+ - DOMAIN-SUFFIX,gemini.google.com,🤖 AI
+ - DOMAIN-SUFFIX,deepmind.com,🤖 AI
+ - DOMAIN-SUFFIX,deepmind.google,🤖 AI
+ - DOMAIN-SUFFIX,generativeai.google,🤖 AI
+ - DOMAIN-SUFFIX,proactivebackend-pa.googleapis.com,🤖 AI
+ - DOMAIN-SUFFIX,apis.google.com,🤖 AI
+ - DOMAIN-KEYWORD,colab,🤖 AI
+ - DOMAIN-KEYWORD,generativelanguage,🤖 AI
+ - DOMAIN-KEYWORD,developerprofiles,🤖 AI
+
+  # ===== Anthropic / Claude =====
+ - DOMAIN-SUFFIX,anthropic.com,🤖 AI
+ - DOMAIN-SUFFIX,claude.ai,🤖 AI
+ - DOMAIN-SUFFIX,claudeusercontent.com,🤖 AI
+
+  # ===== Cursor (AI IDE) =====
+ - DOMAIN-SUFFIX,cursor.sh,🤖 AI
+ - DOMAIN-SUFFIX,cursor.com,🤖 AI
+ - DOMAIN-SUFFIX,cursorapi.com,🤖 AI
+ - DOMAIN-SUFFIX,cursor-cdn.com,🤖 AI
+
+  # ===== Other AI / Infra =====
+ - DOMAIN-SUFFIX,workos.com,🤖 AI
+ - DOMAIN,cdn.usefathom.com,🤖 AI
  - DOMAIN-SUFFIX,airhorn.solutions,🎙 Discord
  - DOMAIN-SUFFIX,airhornbot.com,🎙 Discord
  - DOMAIN-SUFFIX,bigbeans.solutions,🎙 Discord
