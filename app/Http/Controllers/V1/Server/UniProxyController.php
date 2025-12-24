@@ -61,6 +61,16 @@ class UniProxyController extends Controller
     // 后端提交数据
     public function push(Request $request)
     {
+    \Log::info('[UniProxy push raw json]', [
+        'node_type' => $this->nodeType,
+        'node_id'   => $this->nodeId,
+        'raw'       => $rawJson
+    ]);
+
+    $data = json_decode($rawJson, true);
+    if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+        return response(['error' => 'Invalid traffic data'], 400);
+    }
         $data = $request->json()->all();
         if (empty($data)) {
             $data = $_POST;
