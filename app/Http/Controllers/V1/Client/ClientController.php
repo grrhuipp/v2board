@@ -112,7 +112,7 @@ class ClientController extends Controller
             'name' => "到期:{$expiredDate};剩余:{$remainingTraffic}",
         ]));
         array_unshift($servers, array_merge($servers[0], [
-            'name' => "{$userid};官网:{$url}",
+            'name' => "官网:{$url}",
         ]));
     }
 
