@@ -281,34 +281,57 @@ class ClientController extends Controller
             'city' => null
         ];
     }
-    private function replaceServerHostByUaRule(array &$servers, string $userAgent)
-    {
-        $uaRules = config('v2board.ua_rule', '');
-        $uaRules = str_replace(["\r", "\n"], '', $uaRules); // 移除换行符
-        $uaRuleLines = explode(';', $uaRules); // 分号分割
+private function replaceServerHostByUaRule(array &$servers, string $userAgent)
+{
+    $uaRules = config('v2board.ua_rule', '');
+    $uaRules = str_replace(["\r", "\n"], '', $uaRules);
+    $uaRuleLines = explode(';', $uaRules);
 
-        $userAgent = strtolower($userAgent);
+    $userAgent = strtolower($userAgent);
 
-        foreach ($uaRuleLines as $line) {
-            $parts = array_map('trim', explode(',', $line));
-            if (count($parts) !== 3) {
-                continue;
-            }
+    foreach ($uaRuleLines as $line) {
+        $parts = array_map('trim', explode(',', $line));
 
-            [$uaKeyword, $nameKeyword, $newHost] = $parts;
+        // 允许 3 或 4 段
+        if (count($parts) < 3) {
+            continue;
+        }
 
-            if (strpos($userAgent, strtolower($uaKeyword)) !== false) {
-                foreach ($servers as &$server) {
-                    if (isset($server['name']) && stripos($server['name'], $nameKeyword) !== false) {
-                        if (isset($server['host'])) {
-                            $server['host'] = $newHost;
+        [$uaKeyword, $nameKeyword, $newHost] = $parts;
+        $portOffset = isset($parts[3]) ? intval($parts[3]) : null;
+
+        // UA 命中
+        if (strpos($userAgent, strtolower($uaKeyword)) !== false) {
+            foreach ($servers as &$server) {
+                if (
+                    isset($server['name']) &&
+                    stripos($server['name'], $nameKeyword) !== false
+                ) {
+                    // 替换 host
+                    if (!empty($newHost) && isset($server['host'])) {
+                        $server['host'] = $newHost;
+                    }
+
+                    // 端口偏移
+                    if (
+                        $portOffset !== null &&
+                        isset($server['port']) &&
+                        is_numeric($server['port'])
+                    ) {
+                        $newPort = intval($server['port']) + $portOffset;
+
+                        // 防止非法端口
+                        if ($newPort > 0 && $newPort <= 65535) {
+                            $server['port'] = $newPort;
                         }
                     }
                 }
-                break;
             }
+            break; // 仍然只命中第一条 UA 规则
         }
     }
+}
+
     private function replaceServerHostByPlanRule(array &$servers, $user)
     {
         $planRules = config('v2board.plan_rule', '');
