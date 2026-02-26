@@ -854,3 +854,22 @@ CREATE TABLE `v2_user_connect_log` (
 ALTER TABLE `v2_subscribe_log`
 ADD COLUMN `as` VARCHAR(255) DEFAULT NULL AFTER `ip`,
 ADD COLUMN `isp` VARCHAR(255) DEFAULT NULL AFTER `as`;
+
+CREATE TABLE IF NOT EXISTS `v2_user_device` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `user_id` int(11) NOT NULL COMMENT '用户ID',
+    `device_id` varchar(255) NOT NULL COMMENT '设备唯一标识',
+    `device_name` varchar(255) DEFAULT NULL COMMENT '设备名称',
+    `device_model` varchar(255) DEFAULT NULL COMMENT '设备型号',
+    `os_type` varchar(64) DEFAULT NULL COMMENT '系统类型(ios/android/windows/macos/linux)',
+    `os_version` varchar(64) DEFAULT NULL COMMENT '系统版本',
+    `app_version` varchar(64) DEFAULT NULL COMMENT 'APP版本',
+    `last_ip` varchar(45) DEFAULT NULL COMMENT '最后登录IP',
+    `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '0=已解绑 1=已绑定',
+    `last_active_at` int(11) DEFAULT NULL COMMENT '最后活跃时间',
+    `created_at` int(11) NOT NULL,
+    `updated_at` int(11) NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `unique_user_device` (`user_id`, `device_id`),
+    KEY `idx_user_status` (`user_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户设备绑定表';
