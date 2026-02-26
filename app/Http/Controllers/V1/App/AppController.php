@@ -90,7 +90,7 @@ class AppController extends Controller
 
     /**
      * 获取用户绑定设备列表
-     * GET /api/v1/jiuxiang/device/list
+     * GET /api/v1/app/device/list
      */
     public function deviceList(Request $request)
     {
@@ -127,7 +127,7 @@ class AppController extends Controller
 
     /**
      * 绑定设备
-     * POST /api/v1/jiuxiang/device/bind
+     * POST /api/v1/app/device/bind
      */
     public function deviceBind(Request $request)
     {
@@ -144,7 +144,7 @@ class AppController extends Controller
 
     /**
      * 解绑设备
-     * POST /api/v1/jiuxiang/device/unbind
+     * POST /api/v1/app/device/unbind
      */
     public function deviceUnbind(Request $request)
     {
@@ -183,7 +183,7 @@ class AppController extends Controller
 
     /**
      * 解绑所有设备（除当前设备外）
-     * POST /api/v1/jiuxiang/device/unbind-all
+     * POST /api/v1/app/device/unbind-all
      */
     public function deviceUnbindAll(Request $request)
     {
