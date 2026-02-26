@@ -26,7 +26,7 @@ class UserController extends Controller
     public function resetSecret(Request $request)
     {
         $user = User::find($request->input('id'));
-        if (!$user) abort(500, '用户不存在');
+        if (!$user) abort(404, '用户不存在');
         $user->token = Helper::guid();
         $user->uuid = Helper::guid(true);
         return response([
@@ -34,15 +34,30 @@ class UserController extends Controller
         ]);
     }
 
+    private static $allowedFilterKeys = [
+        'id', 'email', 'plan_id', 'transfer_enable', 'd', 'u', 'banned',
+        'expired_at', 'uuid', 'token', 'invite_by_email', 'invite_user_id',
+        'created_at', 'updated_at', 'group_id', 'remarks',
+    ];
+
+    private static $allowedConditions = [
+        '=', '!=', '>', '>=', '<', '<=', 'like',
+    ];
+
     private function filter(Request $request, $builder)
     {
         $filters = $request->input('filter');
         if ($filters) {
             foreach ($filters as $k => $filter) {
+                if (!isset($filter['key'], $filter['condition'], $filter['value'])) continue;
+                if (!in_array($filter['key'], self::$allowedFilterKeys, true)) continue;
+
                 if ($filter['condition'] === '模糊') {
                     $filter['condition'] = 'like';
                     $filter['value'] = "%{$filter['value']}%";
                 }
+                if (!in_array($filter['condition'], self::$allowedConditions, true)) continue;
+
                 if ($filter['key'] === 'd' || $filter['key'] === 'transfer_enable') {
                     $filter['value'] = $filter['value'] * 1073741824;
                 }
@@ -98,7 +113,7 @@ class UserController extends Controller
     public function getUserInfoById(Request $request)
     {
         if (empty($request->input('id'))) {
-            abort(500, '参数错误');
+            abort(400, '参数错误');
         }
         $user = User::find($request->input('id'));
         if ($user->invite_user_id) {
@@ -114,10 +129,10 @@ class UserController extends Controller
         $params = $request->validated();
         $user = User::find($request->input('id'));
         if (!$user) {
-            abort(500, '用户不存在');
+            abort(404, '用户不存在');
         }
         if (User::where('email', $params['email'])->first() && $user->email !== $params['email']) {
-            abort(500, '邮箱已被使用');
+            abort(400, '邮箱已被使用');
         }
         if (isset($params['password'])) {
             $params['password'] = password_hash($params['password'], PASSWORD_DEFAULT);
@@ -128,7 +143,7 @@ class UserController extends Controller
         if (isset($params['plan_id'])) {
             $plan = Plan::find($params['plan_id']);
             if (!$plan) {
-                abort(500, '订阅计划不存在');
+                abort(404, '订阅计划不存在');
             }
             $params['group_id'] = $plan->group_id;
         }
@@ -161,13 +176,9 @@ class UserController extends Controller
         $userModel = User::orderBy('id', 'asc');
         $this->filter($request, $userModel);
         $res = $userModel->get();
-        $plan = Plan::get();
-        for ($i = 0; $i < count($res); $i++) {
-            for ($k = 0; $k < count($plan); $k++) {
-                if ($plan[$k]['id'] == $res[$i]['plan_id']) {
-                    $res[$i]['plan_name'] = $plan[$k]['name'];
-                }
-            }
+        $planMap = Plan::pluck('name', 'id');
+        foreach ($res as $item) {
+            $item['plan_name'] = $planMap[$item['plan_id']] ?? null;
         }
 
         $data = "邮箱,余额,推广佣金,总流量,设备数限制,剩余流量,套餐到期时间,订阅计划,订阅地址\r\n";
@@ -192,7 +203,7 @@ class UserController extends Controller
             if ($request->input('plan_id')) {
                 $plan = Plan::find($request->input('plan_id'));
                 if (!$plan) {
-                    abort(500, '订阅计划不存在');
+                    abort(404, '订阅计划不存在');
                 }
             }
             $user = [
@@ -206,7 +217,7 @@ class UserController extends Controller
                 'token' => Helper::guid()
             ];
             if (User::where('email', $user['email'])->first()) {
-                abort(500, '邮箱已存在于系统中');
+                abort(400, '邮箱已存在于系统中');
             }
             $user['password'] = password_hash($request->input('password') ?? $user['email'], PASSWORD_DEFAULT);
             if (!User::create($user)) {
@@ -226,7 +237,7 @@ class UserController extends Controller
         if ($request->input('plan_id')) {
             $plan = Plan::find($request->input('plan_id'));
             if (!$plan) {
-                abort(500, '订阅计划不存在');
+                abort(404, '订阅计划不存在');
             }
         }
         $users = [];
@@ -347,7 +358,7 @@ class UserController extends Controller
     {
         $user = User::find($request->input('id'));
         if (!$user) {
-            abort(500, '用户不存在');
+            abort(404, '用户不存在');
         }
         DB::beginTransaction();
         try {

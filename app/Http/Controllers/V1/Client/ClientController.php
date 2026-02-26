@@ -44,12 +44,9 @@ class ClientController extends Controller
         $userAgent = strtolower($request->userAgent() ?? '');
         $blockedKeywords = ["mail", "qq", "wechat", "ding"];
         foreach ($blockedKeywords as $keyword) {
-            if (strpos($userAgent, $keyword) !== false) {
+            if (stripos($userAgent, $keyword) !== false) {
                 \Log::warning("检测到非法访问关键字: {$keyword}, 用户ID: {$user->id}, UserAgent: {$userAgent}");
-                $user->token = Helper::guid();
-                $user->uuid = Helper::guid(true);
-                $user->save();
-                abort(401, '非法访问,已重置安全信息');
+                abort(403, '非法访问，请使用正确的客户端');
             }
         }
         $userService = new UserService();

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Order;
 use App\Utils\Helper;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 use Exception;
 
@@ -46,12 +47,15 @@ class CheckRenewal extends Command
      */
     public function handle()
     {
-        ini_set('memory_limit', -1);
-        $users = User::all();
+        $users = User::where('auto_renewal', 1)
+            ->whereNotNull('plan_id')
+            ->whereNotNull('expired_at')
+            ->where('expired_at', '>', time())
+            ->where('expired_at', '<', time() + 86400 * 2)
+            ->cursor();
 
         //$mailService = new MailService();
         foreach ($users as $user) {
-            if ($user->auto_renewal && $user->plan_id !== NULL && $user->expired_at !== NULL && $user->expired_at > time() && $user->expired_at - time() < 86400 * 2) {
                 try {
                     $latestOrder = Order::where('user_id', $user->id)
                         ->where('period', '!=', 'reset_price')
@@ -73,11 +77,14 @@ class CheckRenewal extends Command
                     if (!$plan->renew) {
                         throw new Exception('This subscription cannot be renewed');
                     }
-                    if($user->balance < $plan[$latestPeriod]) {
+                    DB::beginTransaction();
+                    // 在事务内锁定用户行，防止并发余额问题
+                    $user = User::lockForUpdate()->find($user->id);
+                    if (!$user || $user->balance < $plan[$latestPeriod]) {
+                        DB::rollBack();
                         throw new Exception('No enough balance');
                     }
 
-                    DB::beginTransaction();
                     $order = new Order();
                     $orderService = new OrderService($order);
                     $order->user_id = $user->id;
@@ -88,7 +95,7 @@ class CheckRenewal extends Command
                     $order->total_amount = 0;
                     $orderService->setVipDiscount($user);
                     $order->type = 2;
-                    
+
                     $user->balance = $user->balance - $plan[$latestPeriod];
                     $user->expired_at = $this->getTime($latestPeriod, $user->expired_at);
                     if (!$user->save()) {
@@ -103,12 +110,11 @@ class CheckRenewal extends Command
                     DB::commit();
                     //$mailService->remindAutorenewal($user);
                 } catch (\Exception $e) {
-                    $user->auto_renewal = 0;
-                    if(!$user->save()){
-                        info('用户自动续费失败,调整设置失败', [$e->getMessage() , $user]);
-                    };
+                    Log::warning('用户自动续费失败', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage()
+                    ]);
                 }
-            }
         }
     }
 

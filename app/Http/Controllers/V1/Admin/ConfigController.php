@@ -131,7 +131,7 @@ class ConfigController extends Controller
                 'frontend_background_url' => config('v2board.frontend_background_url'),
             ],
             'server' => [
-                'server_token' => config('v2board.server_token'),
+                'server_token' => config('v2board.server_token') ? '******' : '',
                 'server_pull_interval' => config('v2board.server_pull_interval', 60),
                 'server_push_interval' => config('v2board.server_push_interval', 60),
                 'device_limit_mode' => config('v2board.device_limit_mode', 0)
@@ -141,14 +141,14 @@ class ConfigController extends Controller
                 'email_host' => config('v2board.email_host'),
                 'email_port' => config('v2board.email_port'),
                 'email_username' => config('v2board.email_username'),
-                'email_password' => config('v2board.email_password'),
+                'email_password' => config('v2board.email_password') ? '******' : '',
                 'email_encryption' => config('v2board.email_encryption'),
                 'email_from_address' => config('v2board.email_from_address')
             ],
             'telegram' => [
                 'telegram_bot_enable' => config('v2board.telegram_bot_enable', 0),
                 'telegram_bot_order_notify' => config('v2board.telegram_bot_order_notify', 0),
-                'telegram_bot_token' => config('v2board.telegram_bot_token'),
+                'telegram_bot_token' => config('v2board.telegram_bot_token') ? '******' : '',
                 'telegram_discuss_link' => config('v2board.telegram_discuss_link')
             ],
             'app' => [

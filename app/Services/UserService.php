@@ -8,6 +8,7 @@ use App\Jobs\TrafficFetchJob;
 use App\Models\Order;
 use App\Models\Plan;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class UserService
 {
@@ -263,6 +264,11 @@ class UserService
         if (!$user->save()) {
             return false;
         }
+        Log::info('用户余额变动', [
+            'user_id' => $userId,
+            'change' => $balance,
+            'new_balance' => $user->balance,
+        ]);
         return true;
     }
 

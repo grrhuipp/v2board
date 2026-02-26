@@ -34,9 +34,13 @@ class OrderService
     public function open()
     {
         $order = $this->order;
-        $this->user = User::find($order->user_id);
+        DB::beginTransaction();
+        $this->user = User::lockForUpdate()->find($order->user_id);
+        if (!$this->user) {
+            DB::rollBack();
+            abort(500, '用户不存在');
+        }
         if ($order->type == 9) {
-            DB::beginTransaction();
             $this->user->balance += $order->total_amount + $this->getbounus($order->total_amount);
 
             if (!$this->user->save()) {
@@ -49,6 +53,11 @@ class OrderService
                 abort(500, '充值失败');
             }
             DB::commit();
+            Log::info('订单充值开通', [
+                'user_id' => $order->user_id,
+                'order_id' => $order->id,
+                'amount' => $order->total_amount,
+            ]);
             return;
         }
 
@@ -57,7 +66,6 @@ class OrderService
         if ($order->refund_amount) {
             $this->user->balance = $this->user->balance + $order->refund_amount;
         }
-        DB::beginTransaction();
         if ($order->surplus_order_ids) {
             try {
                 Order::whereIn('id', $order->surplus_order_ids)->update([
@@ -104,6 +112,12 @@ class OrderService
         }
 
         DB::commit();
+        Log::info('订单开通成功', [
+            'user_id' => $order->user_id,
+            'order_id' => $order->id,
+            'type' => $order->type,
+            'plan_id' => $order->plan_id,
+        ]);
     }
 
 
@@ -261,8 +275,9 @@ class OrderService
 
     public function paid(string $callbackNo)
     {
-        $order = $this->order;
-        if ($order->status !== 0) return true;
+        $order = Order::lockForUpdate()->find($this->order->id);
+        if (!$order || $order->status !== 0) return true;
+        $this->order = $order;
         if ($order->coupon_id) {
             $coupon = Coupon::find($order->coupon_id);
             if ($coupon && !empty($coupon->bind_email)) {
@@ -279,6 +294,13 @@ class OrderService
         $order->paid_at = time();
         $order->callback_no = $callbackNo;
         if (!$order->save()) return false;
+        Log::info('订单支付成功', [
+            'user_id' => $order->user_id,
+            'order_id' => $order->id,
+            'trade_no' => $order->trade_no,
+            'callback_no' => $callbackNo,
+            'amount' => $order->total_amount,
+        ]);
         try {
             OrderHandleJob::dispatch($order->trade_no);
             app(OrderNotifyService::class)->notify($order);
@@ -290,7 +312,7 @@ class OrderService
             ]);
             return false;
         }
-    
+
         return true;
     }
     
@@ -312,6 +334,12 @@ class OrderService
             }
         }
         DB::commit();
+        Log::info('订单取消成功', [
+            'user_id' => $order->user_id,
+            'order_id' => $order->id,
+            'trade_no' => $order->trade_no,
+            'refund_balance' => $order->balance_amount,
+        ]);
         return true;
     }
 

@@ -37,7 +37,7 @@ class AuthController extends Controller
         ]);
 
         if (Cache::get(CacheKey::get('LAST_SEND_LOGIN_WITH_MAIL_LINK_TIMESTAMP', $params['email']))) {
-            abort(500, __('Sending frequently, please try again later'));
+            abort(429, __('Sending frequently, please try again later'));
         }
 
         $user = User::where('email', $params['email'])->first();
@@ -85,7 +85,7 @@ class AuthController extends Controller
         if ((int)config('v2board.register_limit_by_ip_enable', 0)) {
             $registerCountByIP = Cache::get(CacheKey::get('REGISTER_IP_RATE_LIMIT', $request->ip())) ?? 0;
             if ((int)$registerCountByIP >= (int)config('v2board.register_limit_count', 3)) {
-                abort(500, __('Register frequently, please try again after :minute minute', [
+                abort(429, __('Register frequently, please try again after :minute minute', [
                     'minute' => config('v2board.register_limit_expire', 60)
                 ]));
             }
@@ -120,7 +120,7 @@ class AuthController extends Controller
     
         // 注册开关
         if ((int)config('v2board.stop_register', 0)) {
-            abort(500, __('Registration has closed'));
+            abort(403, __('Registration has closed'));
         }
     
         // 邀请码强制
@@ -463,7 +463,7 @@ class AuthController extends Controller
         if ((int)config('v2board.password_limit_enable', 1)) {
             $passwordErrorCount = (int)Cache::get(CacheKey::get('PASSWORD_ERROR_LIMIT', $email), 0);
             if ($passwordErrorCount >= (int)config('v2board.password_limit_count', 5)) {
-                abort(500, __('There are too many password errors, please try again after :minute minutes.', [
+                abort(429, __('There are too many password errors, please try again after :minute minutes.', [
                     'minute' => config('v2board.password_limit_expire', 60)
                 ]));
             }
@@ -471,7 +471,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $email)->first();
         if (!$user) {
-            abort(500, __('Incorrect email or password'));
+            abort(401, __('Incorrect email or password'));
         }
         if (!Helper::multiPasswordVerify(
             $user->password_algo,
@@ -486,11 +486,11 @@ class AuthController extends Controller
                     60 * (int)config('v2board.password_limit_expire', 60)
                 );
             }
-            abort(500, __('Incorrect email or password'));
+            abort(401, __('Incorrect email or password'));
         }
 
         if ($user->banned) {
-            abort(500, __('Your account has been suspended'));
+            abort(403, __('Your account has been suspended'));
         }
 
         $authService = new AuthService($user);
@@ -522,7 +522,7 @@ class AuthController extends Controller
                 abort(500, __('The user does not '));
             }
             if ($user->banned) {
-                abort(500, __('Your account has been suspended'));
+                abort(403, __('Your account has been suspended'));
             }
             Cache::forget($key);
             $authService = new AuthService($user);
@@ -558,7 +558,7 @@ class AuthController extends Controller
     {
         $forgetRequestLimitKey = CacheKey::get('FORGET_REQUEST_LIMIT', $request->input('email'));
         $forgetRequestLimit = (int)Cache::get($forgetRequestLimitKey);
-        if ($forgetRequestLimit >= 3) abort(500, __('Reset failed, Please try again later'));
+        if ($forgetRequestLimit >= 3) abort(429, __('Reset failed, Please try again later'));
         if ((string)Cache::get(CacheKey::get('EMAIL_VERIFY_CODE', $request->input('email'))) !== (string)$request->input('email_code')) {
             Cache::put($forgetRequestLimitKey, $forgetRequestLimit ? $forgetRequestLimit + 1 : 1, 300);
             abort(500, __('Incorrect email verification code'));

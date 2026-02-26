@@ -40,7 +40,7 @@ class OrderController extends Controller
     public function detail(Request $request)
     {
         $order = Order::find($request->input('id'));
-        if (!$order) abort(500, '订单不存在');
+        if (!$order) abort(404, '订单不存在');
         $order['commission_log'] = CommissionLog::where('trade_no', $order->trade_no)->get();
         if ($order->surplus_order_ids) {
             $order['surplus_orders'] = Order::whereIn('id', $order->surplus_order_ids)->get();
@@ -64,13 +64,9 @@ class OrderController extends Controller
         $total = $orderModel->count();
         $res = $orderModel->forPage($current, $pageSize)
             ->get();
-        $plan = Plan::get();
-        for ($i = 0; $i < count($res); $i++) {
-            for ($k = 0; $k < count($plan); $k++) {
-                if ($plan[$k]['id'] == $res[$i]['plan_id']) {
-                    $res[$i]['plan_name'] = $plan[$k]['name'];
-                }
-            }
+        $planMap = Plan::pluck('name', 'id');
+        foreach ($res as $item) {
+            $item['plan_name'] = $planMap[$item['plan_id']] ?? null;
         }
         return response([
             'data' => $res,
@@ -83,9 +79,9 @@ class OrderController extends Controller
         $order = Order::where('trade_no', $request->input('trade_no'))
             ->first();
         if (!$order) {
-            abort(500, '订单不存在');
+            abort(404, '订单不存在');
         }
-        if ($order->status !== 0) abort(500, '只能对待支付的订单进行操作');
+        if ($order->status !== 0) abort(400, '只能对待支付的订单进行操作');
 
         $orderService = new OrderService($order);
         if (!$orderService->paid('manual_operation')) {
@@ -101,9 +97,9 @@ class OrderController extends Controller
         $order = Order::where('trade_no', $request->input('trade_no'))
             ->first();
         if (!$order) {
-            abort(500, '订单不存在');
+            abort(404, '订单不存在');
         }
-        if ($order->status !== 0) abort(500, '只能对待支付的订单进行操作');
+        if ($order->status !== 0) abort(400, '只能对待支付的订单进行操作');
 
         $orderService = new OrderService($order);
         if (!$orderService->cancel()) {
@@ -123,7 +119,7 @@ class OrderController extends Controller
         $order = Order::where('trade_no', $request->input('trade_no'))
             ->first();
         if (!$order) {
-            abort(500, '订单不存在');
+            abort(404, '订单不存在');
         }
 
         try {

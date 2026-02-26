@@ -133,10 +133,14 @@ class OrderNotifyService
         }
         for ($l = 0; $l < $level; $l++) {
             $inviter = User::find($inviteUserId);
-            if (!$inviter) continue;
-            if (!isset($commissionShareLevels[$l])) continue;
-            $getAmount = $order->commission_balance * ($commissionShareLevels[$l] / 100);
-            if (!$getAmount) continue;
+            if (!$inviter) break;
+            if (!isset($commissionShareLevels[$l])) break;
+            $commissionBalance = $order->commission_balance * ($commissionShareLevels[$l] / 100);
+            if ($commissionBalance) {
+                $getAmount += $commissionBalance;
+            }
+            $inviteUserId = $inviter->invite_user_id;
+            if (!$inviteUserId) break;
         }
         return $getAmount / 100;
     }

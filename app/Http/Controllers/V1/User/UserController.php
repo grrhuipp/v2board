@@ -34,7 +34,7 @@ class UserController extends Controller
     {
         $user = User::find($request->user['id']);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         $authService = new AuthService($user);
         return response([
@@ -46,7 +46,7 @@ class UserController extends Controller
     {
         $user = User::find($request->user['id']);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         $authService = new AuthService($user);
         return response([
@@ -71,7 +71,7 @@ class UserController extends Controller
     {
         $user = User::find($request->user['id']);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         if (!Helper::multiPasswordVerify(
             $user->password_algo,
@@ -79,7 +79,7 @@ class UserController extends Controller
             $request->input('old_password'),
             $user->password
         )) {
-            abort(500, __('The old password is wrong'));
+            abort(400, __('The old password is wrong'));
         }
         $user->password = password_hash($request->input('new_password'), PASSWORD_DEFAULT);
         $user->password_algo = NULL;
@@ -101,10 +101,10 @@ class UserController extends Controller
         try {
             $user = User::find($request->user['id']);
             if (!$user) {
-                abort(500, __('The user does not exist'));
+                abort(404, __('The user does not exist'));
             }
             $giftcard_input = $request->giftcard;
-            $giftcard = Giftcard::where('code', $giftcard_input)->first();
+            $giftcard = Giftcard::where('code', $giftcard_input)->lockForUpdate()->first();
 
             if (!$giftcard) {
                 abort(500, __('The gift card does not exist'));
@@ -226,7 +226,7 @@ class UserController extends Controller
             ])
             ->first();
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         $user['avatar_url'] = 'https://cravatar.cn/avatar/' . md5($user->email) . '?s=64&d=identicon';
         return response([
@@ -268,12 +268,12 @@ class UserController extends Controller
             ])
             ->first();
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         if ($user->plan_id) {
             $user['plan'] = Plan::find($user->plan_id);
             if (!$user['plan']) {
-                abort(500, __('Subscription plan does not exist'));
+                abort(404, __('Subscription plan does not exist'));
             }
         }
 
@@ -301,7 +301,7 @@ class UserController extends Controller
     {
         $user = User::find($request->user['id']);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         if (!$user->update(['telegram_id' => null])) {
             abort(500, __('Unbind telegram failed'));
@@ -315,7 +315,7 @@ class UserController extends Controller
     {
         $user = User::find($request->user['id']);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         $user->uuid = Helper::guid(true);
         $user->token = Helper::guid();
@@ -337,7 +337,7 @@ class UserController extends Controller
 
         $user = User::find($request->user['id']);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         try {
             $user->update($updateData);
@@ -354,10 +354,10 @@ class UserController extends Controller
     {
         $user = User::find($request->user['id']);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         if ($request->input('transfer_amount') > $user->commission_balance) {
-            abort(500, __('Insufficient commission balance'));
+            abort(400, __('Insufficient commission balance'));
         }
         DB::beginTransaction();
         $order = new Order();
@@ -390,7 +390,7 @@ class UserController extends Controller
     {
         $user = User::find($request->user['id']);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
 
         $code = Helper::guid();
@@ -416,7 +416,7 @@ class UserController extends Controller
         try {
             $user = User::find($request->user['id']);
             if (!$user) {
-                abort(500, __('The user does not exist'));
+                abort(404, __('The user does not exist'));
             }
             if ($user->transfer_enable > $user->u + $user->d) {
                 abort(500, __('You have not used up your traffic, you cannot renew your subscription'));
@@ -489,13 +489,13 @@ class UserController extends Controller
         $user_id = $request->user['id'];
         $user = User::find($user_id);
         if (!$user) {
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
         $redemptionCodeService = new RedemptionCodeService();
         $redeemData = $redemptionCodeService->validate($code);
         $plan = Plan::find($redeemData['plan_id']);
         if (!$plan) {
-            abort(500, __('Subscription plan does not exist'));
+            abort(404, __('Subscription plan does not exist'));
         }
         if ((!$plan->show && !$plan->renew) || (!$plan->show && $user->plan_id !== $plan->id)) {
             abort(500, __('This subscription has been sold out, please choose another subscription'));
@@ -549,7 +549,7 @@ class UserController extends Controller
 
         if (!$user) {
             Log::error('用户不存在', ['user_id' => $user_id]);
-            abort(500, __('The user does not exist'));
+            abort(404, __('The user does not exist'));
         }
 
         Log::info('用户存在', ['user_id' => $user->id]);
@@ -562,7 +562,7 @@ class UserController extends Controller
         $plan = Plan::find($redeemData['plan_id']);
         if (!$plan) {
             Log::error('订阅计划不存在', ['plan_id' => $redeemData['plan_id']]);
-            abort(500, __('Subscription plan does not exist'));
+            abort(404, __('Subscription plan does not exist'));
         }
 
         if ((!$plan->show && !$plan->renew) || (!$plan->show && $user->plan_id !== $plan->id)) {

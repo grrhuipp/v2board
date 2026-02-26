@@ -39,8 +39,10 @@ class CouponService
         }
         if ($this->coupon->limit_use !== NULL) {
             if ($this->coupon->limit_use <= 0) return false;
-            $this->coupon->limit_use = $this->coupon->limit_use - 1;
-            if (!$this->coupon->save()) {
+            $affected = Coupon::where('id', $this->coupon->id)
+                ->where('limit_use', '>', 0)
+                ->decrement('limit_use');
+            if (!$affected) {
                 return false;
             }
         }

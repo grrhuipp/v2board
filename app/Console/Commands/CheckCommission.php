@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CheckCommission extends Command
 {
@@ -75,6 +76,13 @@ class CheckCommission extends Command
                 continue;
             }
             DB::commit();
+            Log::info('佣金发放成功', [
+                'order_id' => $order->id,
+                'trade_no' => $order->trade_no,
+                'invite_user_id' => $order->invite_user_id,
+                'commission_balance' => $order->commission_balance,
+                'actual_commission_balance' => $order->actual_commission_balance,
+            ]);
         }
     }
 

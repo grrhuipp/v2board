@@ -27,13 +27,9 @@ class OrderController extends Controller
             $model->where('status', $request->input('status'));
         }
         $order = $model->get();
-        $plan = Plan::get();
-        for ($i = 0; $i < count($order); $i++) {
-            for ($x = 0; $x < count($plan); $x++) {
-                if ($order[$i]['plan_id'] === $plan[$x]['id']) {
-                    $order[$i]['plan'] = $plan[$x];
-                }
-            }
+        $planMap = Plan::get()->keyBy('id');
+        foreach ($order as $item) {
+            $item['plan'] = $planMap[$item['plan_id']] ?? null;
         }
         return response([
             'data' => $order->makeHidden(['id', 'user_id'])
@@ -46,7 +42,7 @@ class OrderController extends Controller
             ->where('trade_no', $request->input('trade_no'))
             ->first();
         if (!$order) {
-            abort(500, __('Order does not exist or has been paid'));
+            abort(404, __('Order does not exist or has been paid'));
         }
         if ($order->plan_id == 0) {
             $order['plan'] = [
@@ -63,7 +59,7 @@ class OrderController extends Controller
         $order['plan'] = Plan::find($order->plan_id);
         $order['try_out_plan_id'] = (int)config('v2board.try_out_plan_id');
         if (!$order['plan']) {
-            abort(500, __('Subscription plan does not exist'));
+            abort(404, __('Subscription plan does not exist'));
         }
         if ($order->surplus_order_ids) {
             $order['surplus_orders'] = Order::whereIn('id', $order->surplus_order_ids)->get();
@@ -76,6 +72,13 @@ class OrderController extends Controller
     public function save(OrderSave $request)
     {
         $userService = new UserService();
+        $currentUser = User::find($request->user['id']);
+        if (!$currentUser) {
+            abort(500, __('The user does not exist'));
+        }
+        if ($currentUser->banned) {
+            abort(403, __('Your account has been suspended'));
+        }
         // if ($userService->isNotCompleteOrderByUserId($request->user['id'])) {
         //     abort(500, __('You have an unpaid or pending order, please try again later or cancel it'));
         // }
@@ -117,7 +120,7 @@ class OrderController extends Controller
         $user = User::find($request->user['id']);
 
         if (!$plan) {
-            abort(500, __('Subscription plan does not exist'));
+            abort(404, __('Subscription plan does not exist'));
         }
 
         if ($user->plan_id !== $plan->id && !$planService->haveCapacity() && $request->input('period') !== 'reset_price') {
@@ -176,14 +179,14 @@ class OrderController extends Controller
             if ($remainingBalance > 0) {
                 if (!$userService->addBalance($order->user_id, - $order->total_amount)) {
                     DB::rollBack();
-                    abort(500, __('Insufficient balance'));
+                    abort(400, __('Insufficient balance'));
                 }
                 $order->balance_amount = $order->total_amount;
                 $order->total_amount = 0;
             } else {
                 if (!$userService->addBalance($order->user_id, - $user->balance)) {
                     DB::rollBack();
-                    abort(500, __('Insufficient balance'));
+                    abort(400, __('Insufficient balance'));
                 }
                 $order->balance_amount = $user->balance;
                 $order->total_amount -= $user->balance;
@@ -213,7 +216,7 @@ class OrderController extends Controller
             ->where('status', 0)
             ->first();
         if (!$order) {
-            abort(500, __('Order does not exist or has been paid'));
+            abort(404, __('Order does not exist or has been paid'));
         }
         // free process
         if ($order->total_amount <= 0) {
@@ -252,7 +255,7 @@ class OrderController extends Controller
             ->where('user_id', $request->user['id'])
             ->first();
         if (!$order) {
-            abort(500, __('Order does not exist'));
+            abort(404, __('Order does not exist'));
         }
         return response([
             'data' => $order->status
@@ -281,16 +284,16 @@ class OrderController extends Controller
     public function cancel(Request $request)
     {
         if (empty($request->input('trade_no'))) {
-            abort(500, __('Invalid parameter'));
+            abort(400, __('Invalid parameter'));
         }
         $order = Order::where('trade_no', $request->input('trade_no'))
             ->where('user_id', $request->user['id'])
             ->first();
         if (!$order) {
-            abort(500, __('Order does not exist'));
+            abort(404, __('Order does not exist'));
         }
         if ($order->status !== 0) {
-            abort(500, __('You can only cancel pending orders'));
+            abort(400, __('You can only cancel pending orders'));
         }
         $orderService = new OrderService($order);
         if (!$orderService->cancel()) {
