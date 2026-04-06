@@ -7,6 +7,7 @@ use Illuminate\Encryption\Encrypter;
 use App\Models\User;
 use App\Utils\Helper;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class V2boardInstall extends Command
 {
@@ -74,16 +75,23 @@ class V2boardInstall extends Command
             if (!$file) {
                 abort(500, '数据库文件不存在');
             }
-            $sql = str_replace("\n", "", $file);
-            $sql = preg_split("/;/", $sql);
+            $sql = preg_split("/;/", $file);
             if (!is_array($sql)) {
                 abort(500, '数据库文件格式有误');
             }
             $this->info('正在导入数据库请稍等...');
             foreach ($sql as $item) {
+                $item = trim($item);
+                if ($item === '') {
+                    continue;
+                }
                 try {
-                    DB::select(DB::raw($item));
+                    DB::unprepared($item);
                 } catch (\Exception $e) {
+                    Log::warning('V2board install SQL execution failed', [
+                        'sql' => substr(str_replace(["\r", "\n"], ' ', $item), 0, 500),
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
             $this->info('数据库导入完成');
